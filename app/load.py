@@ -1,9 +1,6 @@
 import pandas as pd
-import numpy as np
 from sqlalchemy import create_engine, text
 import hashlib
-import os
-from dotenv import load_dotenv
 
 def get_hash_id(name):
     """Normalizing artist data and generating unique IDs"""
@@ -11,32 +8,8 @@ def get_hash_id(name):
         return None
     return hashlib.md5(str(name).strip().encode('utf-8')).hexdigest()[:15]
 
-def run_etl(file_path, db_url):
-    print("ETL Pipeline start")
-    
-    # 1. EXTRACT
-    print("dataset.csv reading")
-    df = pd.read_csv(file_path)
-    
-    # 2. TRANSFORM
-    print("data cleaning")
-    
-    # remove rows where important fields are empty.
-    df = df.dropna(subset=['track_id', 'track_name', 'artists', 'album_name'])
-    
-    # remove repeated songs (track_id)
-    df = df.drop_duplicates(subset=['track_id'])
-    
-    # restrict values ​​according to the database's CHECK constraints.
-    df['popularity'] = df['popularity'].clip(0, 100)
-    df['danceability'] = df['danceability'].clip(0.0, 1.0)
-    df['energy'] = df['energy'].clip(0.0, 1.0)
-    df['duration_ms'] = df['duration_ms'].apply(lambda x: x if x > 0 else 1)
-    
-    # PostgreSQL connect
+def load_data(df, db_url):
     engine = create_engine(db_url)
-    
-    # 3. LOAD
     
     # table 1 - Genres
     print("'genres' fil")
@@ -76,7 +49,6 @@ def run_etl(file_path, db_url):
     
     for _, row in df.iterrows():
         t_id = row['track_id']
-        # separate artists if they sing the song with several people (Ingrid Michaelson;ZAYN)
         track_artists = [a.strip() for a in str(row['artists']).split(';')]
         for artist_name in track_artists:
             a_id = get_hash_id(artist_name)
@@ -92,7 +64,7 @@ def run_etl(file_path, db_url):
             )
             conn.commit()
     
-    # table 4 - Tracks (Main Fact Table)
+    # table 4 - Tracks
     print("fil main 'tracks' ")
     df['genre_id'] = df['track_genre'].map(genre_map)
     df['album_id'] = df['album_name'].map(album_map)
@@ -116,7 +88,7 @@ def run_etl(file_path, db_url):
             )
             conn.commit()
     
-    # populating the intermediate table of the Many-to-Many relationship
+    # Junction table
     track_artists_df = pd.DataFrame(track_artists_rows).drop_duplicates()
     with engine.connect() as conn:
         for _, row in track_artists_df.iterrows():
@@ -125,24 +97,5 @@ def run_etl(file_path, db_url):
                 {"track_id": row['track_id'], "artist_id": row['artist_id']}
             )
             conn.commit()
-    
+            
     print("done, datas are in postgresql ")
-
-if __name__ == "__main__":
-    current_dir = os.path.dirname(__file__)
-    dotenv_path = os.path.join(current_dir, '..', '.env')
-    
-    
-    load_dotenv(dotenv_path=dotenv_path, override=True)
-    
-    CSV_FILE_PATH = os.getenv("CSV_FILE_PATH")
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    
-    
-    if not CSV_FILE_PATH:
-        CSV_FILE_PATH = "/Users/allamakaryan/Desktop/spotify_project/data/dataset.csv"
-        
-    if not DATABASE_URL:
-        DATABASE_URL = "postgresql://postgres:MY_PASSWORD@localhost:5432/postgres"
-    
-    run_etl(CSV_FILE_PATH, DATABASE_URL)
