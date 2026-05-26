@@ -4,14 +4,14 @@ This project implements a production-ready **ETL (Extract, Transform, Load)** pi
 
 ---
 
-## 📊 Dataset Description
+## Dataset Description
 * **Source:** [Spotify Tracks Dataset – Kaggle](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset)
 * **Overview:** The dataset contains over 114,000 Spotify tracks with detailed audio features (such as `danceability`, `energy`, `acousticness`) and metadata (artists, albums, popularity, and explicit content flags).
 * **Setup Note:** Due to GitHub's file size limitations, the raw `dataset.csv` is not tracked in this repository. To run the project, download the dataset from the Kaggle link above and place it into the `data/` directory.
 
 ---
 
-## 🗄️ Database Schema & Architecture
+## Database Schema & Architecture
 
 The database follows relational modeling principles (aiming for 3NF) to systematically handle data integrity and eliminate redundancies, particularly resolving the **Many-to-Many** mapping between tracks and artists.
 
@@ -23,7 +23,7 @@ The database follows relational modeling principles (aiming for 3NF) to systemat
 
 ---
 
-## 🛠️ Data Cleaning & Transformation Pipeline Documentation
+## Data Cleaning & Transformation Pipeline Documentation
 
 To adhere to enterprise-level software engineering principles, the pipeline is entirely modularized into isolated operational script files (`extract.py`, `transform.py`, `load.py`) under the control of a central orchestrator (`main.py`).
 
@@ -38,7 +38,7 @@ To adhere to enterprise-level software engineering principles, the pipeline is e
 
 ---
 
-## 📈 SQL Analytical Queries & Results Summary
+## SQL Analytical Queries & Results Summary
 
 To fully validate the transactional database schema, comprehensive analytical evaluations were conducted via the relational engine. Below are the precise queries executed and documented in `sql/queries.sql`:
 
