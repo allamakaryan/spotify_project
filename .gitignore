@@ -1,0 +1,3 @@
+.env
+data/dataset.csv
+__pycache__/
