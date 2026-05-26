@@ -1,43 +1,53 @@
 # Spotify ETL Pipeline & Relational Database Project
 
-This project implements a robust **ETL (Extract, Transform, Load)** pipeline that processes a Spotify tracks dataset using **Python (Pandas)** and populates a structured **PostgreSQL** relational database.
+This project implements a production-ready **ETL (Extract, Transform, Load)** pipeline that processes a Spotify tracks dataset using **Python (Pandas)** and populates a modular, well-structured **PostgreSQL** relational database.
 
-## Database Schema
+---
 
-The database is designed following relational modeling principles (aiming for 3NF) to effectively resolve the **Many-to-Many** relationship between tracks and artists.
+## 📊 Dataset Description
+* **Source:** [Spotify Tracks Dataset – Kaggle](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset)
+* **Overview:** The dataset contains over 114,000 Spotify tracks with detailed audio features (such as `danceability`, `energy`, `acousticness`) and metadata (artists, albums, popularity, and explicit content flags).
+* **Setup Note:** Due to GitHub's file size limitations, the raw `dataset.csv` is not tracked in this repository. To run the project, download the dataset from the Kaggle link above and place it into the `data/` directory.
+
+---
+
+## 🗄️ Database Schema & Architecture
+
+The database follows relational modeling principles (aiming for 3NF) to systematically handle data integrity and eliminate redundancies, particularly resolving the **Many-to-Many** mapping between tracks and artists.
 
 * **`genres`:** Stores unique music genres (`genre_id` [PK], `genre_name` [Unique]).
-* **`albums`:** Stores album titles (`album_id` [PK], `album_name`).
+* **`albums`:** Stores unique album configurations (`album_id` [PK], `album_name`).
 * **`artists`:** Stores artist details (`artist_id` [PK, generated via MD5 hashing], `artist_name`).
-* **`tracks`:** The main **Fact Table** containing song names, foreign keys (`album_id` [FK], `genre_id` [FK]), and audio metrics (such as `danceability`, `energy`, `loudness`, and `popularity`).
-* **`track_artists`:** A **Junction Table** managing the Many-to-Many mapping between tracks and artists (`track_id` [FK], `artist_id` [FK]).
+* **`tracks`:** The core **Fact Table** containing individual songs, foreign keys (`album_id` [FK], `genre_id` [FK]), and all critical audio performance metrics.
+* **`track_artists`:** A **Junction Table** (Bridge) managing the Many-to-Many relationships between tracks and artists (`track_id` [FK], `artist_id` [FK]).
 
-## Pipeline Architecture (Modular Design)
+---
 
-To ensure high maintainability and adhere to industry standards, the ETL pipeline is decoupled into distinct modules:
+## 🛠️ Data Cleaning & Transformation Pipeline Documentation
 
-1. **`extract.py` (Extract):** Responsible for ingesting the raw source data from `dataset.csv` utilizing Pandas.
-2. **`transform.py` (Transform):** Handles data cleaning and business logic:
-   * Drops rows with critical missing values (`track_id`, `track_name`).
-   * Eliminates duplicate records based on unique `track_id` constraints.
-   * Utilizes `.clip()` functions to sanitize technical metrics, ensuring alignment with the database `CHECK` constraints (e.g., keeping popularity within `[0, 100]`).
-3. **`load.py` (Load):** Connects to the database via SQLAlchemy and executes batch transactions using `INSERT ... ON CONFLICT DO NOTHING` to prevent redundancy.
-4. **`main.py` (Orchestrator):** Serves as the central entry point managing the execution flow of the extraction, transformation, and loading phases.
+To adhere to enterprise-level software engineering principles, the pipeline is entirely modularized into isolated operational script files (`extract.py`, `transform.py`, `load.py`) under the control of a central orchestrator (`main.py`).
 
-## Analytical Results Summary
+### Detailed Processing Steps:
+1. **Extraction (`extract.py`):** Ingests raw structured data directly from `data/dataset.csv` into an in-memory Pandas DataFrame.
+2. **Transformation & Cleaning (`transform.py`):**
+   * **Missing Value Resolution:** Drops any records missing critical identifier keys or text tags (`track_id`, `track_name`, `artists`, `album_name`) using `.dropna()` to guarantee relational database constraints.
+   * **Deduplication:** Removes absolute redundant data injections by purging duplicated `track_id` entries via `.drop_duplicates()`.
+   * **Constraint Boundary Enforcement:** Applies technical out-of-bounds sanitation using `.clip()` functions to ensure values align exactly with SQL domain rules (e.g., locking track popularity inside `[0, 100]`, and forcing decimal scales like danceability and energy strictly within `[0.0, 1.0]`).
+   * **Data Correction:** Checks and normalizes anomalous time signatures, resetting any zero or negative track durations (`duration_ms`) safely up to `1`.
+3. **Loading (`load.py`):** Initializes batch processing connection streams via SQLAlchemy and pushes structured dimensions safely using standard `INSERT ... ON CONFLICT DO NOTHING` statements to guarantee execution idempotency.
 
-An analysis conducted via custom SQL queries in `sql/queries.sql` yielded the following insights:
-* **Summary Statistics:** The global average popularity of tracks in the dataset hovers around ~30-40, with top-tier hits successfully reaching a peak score of 100.
-* **Explicit vs. Clean Trends:** Tracks flagged as "Explicit" demonstrate a higher average popularity and increased loudness compared to their "Clean" counterparts.
-* **Top Genres:** When breaking data down by track density and audience engagement, Pop, Rock, and Dance consistently emerge as the dominant genres.
+---
 
-## Getting Started
+## 📈 SQL Analytical Queries & Results Summary
 
-### 1. Database Setup
-1. Create a fresh, empty database instance within your PostgreSQL environment (e.g., via pgAdmin).
-2. Execute the DDL queries located in `sql/schema.sql` to instantiate the tables and constraints.
+To fully validate the transactional database schema, comprehensive analytical evaluations were conducted via the relational engine. Below are the precise queries executed and documented in `sql/queries.sql`:
 
-### 2. Environment Configurations
-Install the required Python packages from the root directory:
-```bash
-pip install -r requirements.txt
+### 1. Summary Statistics
+```sql
+SELECT 
+    COUNT(*) as total_tracks,
+    ROUND(AVG(popularity), 2) as avg_popularity,
+    ROUND(AVG(danceability)::numeric, 2) as avg_danceability,
+    ROUND(AVG(energy)::numeric, 2) as avg_energy,
+    MAX(popularity) as max_popularity
+FROM tracks;
