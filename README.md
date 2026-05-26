@@ -1,61 +1,43 @@
-Spotify ETL Pipeline & Relational Database Project
-This project implements a full ETL (Extract, Transform, Load) pipeline on the Spotify Tracks dataset using Python (Pandas) and loads the data into a PostgreSQL relational database.
-📊 Database Schema
-The database is designed using a relational model (3NF), efficiently handling the Many-to-Many relationship between tracks and artists.
+# Spotify ETL Pipeline & Relational Database Project
 
-genres: genre_id (PK), genre_name (Unique)
-albums: album_id (PK), album_name
-artists: artist_id (PK, MD5 Hash), artist_name
-tracks: track_id (PK), track_name, album_id (FK), genre_id (FK), and audio metrics (danceability, energy, loudness, popularity)
-track_artists: track_id (FK), artist_id (FK) — Junction table for the Many-to-Many relationship
+This project implements a robust **ETL (Extract, Transform, Load)** pipeline that processes a Spotify tracks dataset using **Python (Pandas)** and populates a structured **PostgreSQL** relational database.
 
-🛠️ Pipeline Description
-The pipeline is split into separate modules for clean, modular architecture:
+## Database Schema
 
-extract.py — Reads the raw dataset.csv file using Pandas
-transform.py — Cleans missing values, removes duplicate track IDs, and clips values to match database CHECK constraints
-load.py — Inserts data into PostgreSQL using INSERT ... ON CONFLICT DO NOTHING via SQLAlchemy
-main.py — Entry point that orchestrates the full ETL pipeline
+The database is designed following relational modeling principles (aiming for 3NF) to effectively resolve the **Many-to-Many** relationship between tracks and artists.
 
-📈 Analytical Results Summary
-Key insights from sql/queries.sql:
+* **`genres`:** Stores unique music genres (`genre_id` [PK], `genre_name` [Unique]).
+* **`albums`:** Stores album titles (`album_id` [PK], `album_name`).
+* **`artists`:** Stores artist details (`artist_id` [PK, generated via MD5 hashing], `artist_name`).
+* **`tracks`:** The main **Fact Table** containing song names, foreign keys (`album_id` [FK], `genre_id` [FK]), and audio metrics (such as `danceability`, `energy`, `loudness`, and `popularity`).
+* **`track_artists`:** A **Junction Table** managing the Many-to-Many mapping between tracks and artists (`track_id` [FK], `artist_id` [FK]).
 
-Summary Stats: Average track popularity is ~33, with a maximum of 100
-Explicit vs Clean: Explicit tracks have higher average popularity and loudness than clean tracks
-Top Genres: Pop, Dance, and Rock lead in both track count and average popularity
-Top Artists: Artists with 5+ tracks were ranked by average popularity using multi-table JOINs
-Window Function: Tracks ranked within each album by popularity using RANK() OVER (PARTITION BY album_id)
+## Pipeline Architecture (Modular Design)
 
-🚀 How to Run
-1. Create the database in PostgreSQL
-sqlCREATE DATABASE spotify_db;
-2. Run the schema script to create tables
-Open sql/schema.sql in your SQL client and execute it.
-3. Install dependencies
-bashpip install -r requirements.txt
-4. Create a .env file in the project root
-CSV_FILE_PATH=data/dataset.csv
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/postgres
-5. Run the pipeline
-bashpython3 app/main.py
-📁 Project Structure
-spotify_project/
-├── app/
-│   ├── extract.py
-│   ├── transform.py
-│   ├── load.py
-│   └── main.py
-├── sql/
-│   ├── schema.sql
-│   └── queries.sql
-├── data/
-│   └── dataset.csv
-├── .env
-├── .gitignore
-├── requirements.txt
-└── README.md
-🗃️ Dataset
+To ensure high maintainability and adhere to industry standards, the ETL pipeline is decoupled into distinct modules:
 
-Source: Kaggle — Spotify Tracks Dataset
-Size: 114,000 tracks, 114 genres, 31,000+ artists
-After cleaning: 89,740 unique tracks
+1. **`extract.py` (Extract):** Responsible for ingesting the raw source data from `dataset.csv` utilizing Pandas.
+2. **`transform.py` (Transform):** Handles data cleaning and business logic:
+   * Drops rows with critical missing values (`track_id`, `track_name`).
+   * Eliminates duplicate records based on unique `track_id` constraints.
+   * Utilizes `.clip()` functions to sanitize technical metrics, ensuring alignment with the database `CHECK` constraints (e.g., keeping popularity within `[0, 100]`).
+3. **`load.py` (Load):** Connects to the database via SQLAlchemy and executes batch transactions using `INSERT ... ON CONFLICT DO NOTHING` to prevent redundancy.
+4. **`main.py` (Orchestrator):** Serves as the central entry point managing the execution flow of the extraction, transformation, and loading phases.
+
+## Analytical Results Summary
+
+An analysis conducted via custom SQL queries in `sql/queries.sql` yielded the following insights:
+* **Summary Statistics:** The global average popularity of tracks in the dataset hovers around ~30-40, with top-tier hits successfully reaching a peak score of 100.
+* **Explicit vs. Clean Trends:** Tracks flagged as "Explicit" demonstrate a higher average popularity and increased loudness compared to their "Clean" counterparts.
+* **Top Genres:** When breaking data down by track density and audience engagement, Pop, Rock, and Dance consistently emerge as the dominant genres.
+
+## Getting Started
+
+### 1. Database Setup
+1. Create a fresh, empty database instance within your PostgreSQL environment (e.g., via pgAdmin).
+2. Execute the DDL queries located in `sql/schema.sql` to instantiate the tables and constraints.
+
+### 2. Environment Configurations
+Install the required Python packages from the root directory:
+```bash
+pip install -r requirements.txt
